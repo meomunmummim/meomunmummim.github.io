@@ -139,7 +139,7 @@ button#reset:hover{ border-color: var(--amber); color: var(--amber); }
 const SUPABASE_URL = 'https://qpkyxplmvbiquocbqeud.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_PWjK2NqaRgiFLmykBaL1dw_r0vYyUO7';
 
-const supabase = window.supabase.createClient(
+const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
@@ -376,7 +376,7 @@ function render(){
 // 1. SAVE: Store the checkmark in the browser
 async function save(key, value){
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('checklist_items')
       .upsert({
         id: key,
@@ -397,7 +397,7 @@ async function loadAll(){
   const status = document.getElementById('status');
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('checklist_items')
       .select('id, completed');
 
@@ -424,7 +424,7 @@ document.getElementById('reset').addEventListener('click', async () => {
 for(const key of keys){
   delete state[key];
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from('checklist_items')
     .delete()
     .eq('id', key);
