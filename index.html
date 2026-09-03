@@ -133,8 +133,17 @@ button#reset:hover{ border-color: var(--amber); color: var(--amber); }
   </footer>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-// Each item: [ title, [step1, step2, ...], benchmark ]
+const SUPABASE_URL = 'https://qpkyxplmvbiquocbqeud.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_PWjK2NqaRgiFLmykBaL1dw_r0vYyUO7';
+
+const supabase = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
 const SECTIONS = [
 { id:'tools-core', tag:'01', title:'Core Tools', items:[
   ['Git', ['Install Git and set your name/email with git config','Run git init in a test folder','Make a file, git add + commit it','Create a GitHub repo and push to it','Change a file on GitHub, then git pull locally','Create a branch, edit it, merge it back'],
@@ -367,48 +376,65 @@ function render(){
 // 1. SAVE: Store the checkmark in the browser
 async function save(key, value){
   try {
-    localStorage.setItem(key, JSON.stringify(value));
-    document.getElementById('status').textContent = 'saved';
+    const { error } = await supabase
+      .from('checklist_items')
+      .upsert({
+        id: key,
+        completed: value,
+        updated_at: new Date().toISOString()
+      });
+
+    if(error) throw error;
+
+    document.getElementById('status').textContent = 'saved to cloud';
   } catch(e) {
     document.getElementById('status').textContent = 'save failed';
     console.error(e);
   }
 }
-
 // 2. LOAD: Read the checkmarks when you open the page
 async function loadAll(){
   const status = document.getElementById('status');
+
   try {
-    const keys = [];
-    SECTIONS.forEach(sec => sec.items.forEach((it, iIdx) => it[1].forEach((_, stIdx) => keys.push(stepKey(sec.id, iIdx, stIdx)))));
-    
-    for(const key of keys){
-      const res = localStorage.getItem(key);
-      if(res !== null) {
-        state[key] = JSON.parse(res);
-      }
-    }
-    status.textContent = 'progress loaded';
+    const { data, error } = await supabase
+      .from('checklist_items')
+      .select('id, completed');
+
+    if(error) throw error;
+
+    data.forEach(row => {
+      state[row.id] = row.completed;
+    });
+
+    status.textContent = 'progress loaded from cloud';
   } catch(e) {
     status.textContent = 'could not load saved progress';
     console.error(e);
   }
+
   render();
 }
-
 // 3. RESET: Delete all checkmarks when the button is clicked
 document.getElementById('reset').addEventListener('click', async () => {
   if(!confirm('Clear every checkmark? This cannot be undone.')) return;
   const keys = [];
   SECTIONS.forEach(sec => sec.items.forEach((it, iIdx) => it[1].forEach((_, stIdx) => keys.push(stepKey(sec.id, iIdx, stIdx)))));
   
-  for(const key of keys){
-    delete state[key];
-    localStorage.removeItem(key);
-  }
-  render();
-});
+for(const key of keys){
+  delete state[key];
 
+  const { error } = await supabase
+    .from('checklist_items')
+    .delete()
+    .eq('id', key);
+
+  if(error) {
+    console.error(error);
+  }
+}
+
+render();
 loadAll();
 </script>
 </body>
